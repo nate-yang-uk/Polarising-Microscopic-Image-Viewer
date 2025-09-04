@@ -1,0 +1,17 @@
+# requirements.txt
+
+# Core libraries for the metadata script (all standard, so nothing required here)
+# Included below are useful extras for image handling / viewing
+
+# Data handling
+pandas
+
+# Image handling
+Pillow
+
+# Interactive viewer (if you also use streamlit_app.py I made earlier)
+streamlit
+
+# Scientific stack (optional but common in imaging workflows)
+numpy
+matplotlib

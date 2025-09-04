@@ -73,7 +73,7 @@ def parse_filename(name: str):
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--folder", required=True, help="Folder containing your images")
+    ap.add_argument("--folder", required=False, default="E:/OneDrive - University of Southampton/EDH BAM project - Shared Documents/General/Experiments/Vertical setup data/2025-09-03 new BS 8CB face up/unified data", help="Folder containing your images")
     ap.add_argument(
         "--ext", nargs="*", default=DEFAULT_EXTS, help="Extensions to include"
     )
@@ -104,7 +104,7 @@ def main():
                 "magnification": rec["magnification"],
                 "magnification_value": rec["magnification_value"],
                 "ext": rec["ext"],
-                "abs_path": str(p),
+                "rel_path": str(p.relative_to(root)),
             }
             rows.append(rec_out)
         except Exception as e:
@@ -126,7 +126,7 @@ def main():
                 "magnification",
                 "magnification_value",
                 "ext",
-                "abs_path",
+                "rel_path",   # was "abs_path"
             ],
         )
         writer.writeheader()

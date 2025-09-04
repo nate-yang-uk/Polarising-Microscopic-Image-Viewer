@@ -5,7 +5,7 @@ METHOD_LOCATION_SAMPLE_MODE_MAGNIFICATION.ext
 (e.g., PCM_BIU_glassLube_NA_10x.jpg)
 
 Reads a metadata.csv created from the filenames with columns:
-  filename, method, location, sample, mode, magnification, magnification_value, ext, rel_path
+  filename, method, location, sample, mode, magnification, magnification_value, ext, abs_path
 
 Features:
 - Toggle view: By Sample or By Method
@@ -23,26 +23,13 @@ import pandas as pd
 from PIL import Image, UnidentifiedImageError
 import streamlit as st
 
+
 # ---------------------------
 # Utilities
 # ---------------------------
 @st.cache_data(show_spinner=False)
 def load_metadata(csv_path: Path) -> pd.DataFrame:
-
-        # 1. Get the directory where the script is located
-    script_dir = Path(__file__).resolve().parent
-
-    # 2. Define the root folder (parent of the script folder)
-    root = script_dir.parent
-
-    # 3. Load your CSV
     df = pd.read_csv(csv_path)
-    csv_path = script_dir / "metadata.csv"
-
-    # 4. Turn relative paths into full paths
-    df["full_path"] = df["rel_path"].apply(lambda x: str(root / x))
-
-
     # Normalize expected columns (tolerate case differences)
     df.columns = [c.strip().lower() for c in df.columns]
     # Ensure required columns exist
@@ -54,7 +41,7 @@ def load_metadata(csv_path: Path) -> pd.DataFrame:
         "mode",
         "magnification",
         "ext",
-        "rel_path",
+        "abs_path",
     }
     missing = required - set(df.columns)
     if missing:
@@ -77,7 +64,7 @@ def load_metadata(csv_path: Path) -> pd.DataFrame:
         "magnification",
         "filename",
         "ext",
-        "rel_path",
+        "abs_path",
     ]:
         df[c] = df[c].astype(str)
     return df
@@ -105,12 +92,13 @@ def filtered_df(df: pd.DataFrame) -> pd.DataFrame:
         ]
 
     # Faceted filters
+    c1, c2 = st.sidebar.columns(2)
     methods = sorted(df["method"].dropna().unique().tolist())
     locations = sorted(df["location"].dropna().unique().tolist())
     modes = sorted(df["mode"].dropna().unique().tolist())
 
-    sel_methods = st.sidebar.multiselect("Method", methods, default=methods)
-    sel_locations = st.sidebar.multiselect("Location", locations, default=locations)
+    sel_methods = c1.multiselect("Method", methods, default=methods)
+    sel_locations = c2.multiselect("Location", locations, default=locations)
     sel_modes = st.sidebar.multiselect("Mode", modes, default=modes)
 
     df = df[
@@ -121,11 +109,29 @@ def filtered_df(df: pd.DataFrame) -> pd.DataFrame:
 
     # Magnification filter: use text values and numeric range if available
     mags_text = sorted(df["magnification"].dropna().unique().tolist())
+    st.sidebar.markdown("**Magnification**")
 
-    sel_mags_text = st.sidebar.multiselect("magnification", mags_text, default=mags_text)
+    sel_mags_text = st.sidebar.multiselect("Labels", mags_text, default=mags_text)
 
     df = df[df["magnification"].isin(sel_mags_text)]
 
+    if df["magnification_value"].notna().any():
+        min_mag = float(df["magnification_value"].min(skipna=True))
+        max_mag = float(df["magnification_value"].max(skipna=True))
+        if min_mag <= max_mag:
+            lo, hi = st.sidebar.slider(
+                "Numeric range (if available)",
+                min_value=min_mag,
+                max_value=max_mag,
+                value=(min_mag, max_mag),
+            )
+            df = df[
+                df["magnification_value"].isna()
+                | (
+                    (df["magnification_value"] >= lo)
+                    & (df["magnification_value"] <= hi)
+                )
+            ]
 
     return df
 
@@ -136,10 +142,9 @@ def grid_show(
     show_captions: bool,
     caption_style: str,
 ):
-
     cols = st.columns(images_per_row)
     for i, (_, row) in enumerate(group_rows.iterrows()):
-        path = Path(row["rel_path"])
+        path = Path(row["abs_path"])
         img = None
         err = None
         try:
@@ -149,29 +154,21 @@ def grid_show(
 
         with cols[i % images_per_row]:
             if img is not None:
-                st.image(img, width="stretch")
+                st.image(img, use_container_width=True)
             else:
                 st.warning(f"⚠️ Could not open: {path.name}\n\n{err}")
             if show_captions:
                 if caption_style == "Filename":
-                    # st.caption(row["filename"])
-                    st.markdown(
-                        f"<span style='font-size:20px; color:gray;'>**{row['filename']}**</span>",
-                        unsafe_allow_html=True,
-                    )
+                    st.caption(row["filename"])
                 elif caption_style == "Short metadata":
-
-                    st.markdown(
-                        f"<span style='font-size:20px; color:gray;'>**{row['method']} | {row['sample']} | {row['magnification']}**</span>",
-                        unsafe_allow_html=True,
+                    st.caption(
+                        f"{row['method']} | {row['sample']} | {row['magnification']}"
                     )
                 else:
-
-                    st.markdown(
-                        f"<span style='font-size:20px; color:gray;'>**Method: {row['method']} • Location: {row['location']} • "
+                    st.caption(
+                        f"Method: {row['method']} • Location: {row['location']} • "
                         f"Sample: {row['sample']} • Mode: {row['mode']} • "
-                        f"Mag: {row['magnification']}**</span>",
-                        unsafe_allow_html=True,
+                        f"Mag: {row['magnification']}"
                     )
 
 
@@ -194,7 +191,7 @@ def main():
     )
 
     # Source selector (UI fallback)
-    src_mode = st.sidebar.radio("Data source", ["Upload CSV" , "From folder"])
+    src_mode = st.sidebar.radio("Data source", ["From folder", "Upload CSV"])
     csv_path = None
 
     if args.csv:
@@ -227,16 +224,27 @@ def main():
             st.stop()
         df = load_metadata(csv_path)
 
+    # Sidebar filters
+    df = filtered_df(df)
+
+    # Download filtered CSV
+    st.sidebar.download_button(
+        label="⬇️ Download filtered CSV",
+        data=df.to_csv(index=False).encode("utf-8"),
+        file_name="metadata_filtered.csv",
+        mime="text/csv",
+        disabled=df.empty,
+    )
 
     # View controls
     st.sidebar.markdown("---")
     view_mode = st.sidebar.radio("View mode", ["By Sample", "By Method"])
     group_axis = st.sidebar.selectbox(
         "Compare across (grouped by)",
-        ["method","location", "sample","mode", "magnification"],
+        ["method", "magnification", "mode"],
         index=0 if view_mode == "By Sample" else 0,
     )
-    images_per_row = st.sidebar.slider("Images per row (change this to 1 for large images)", 1, 8, 2)
+    images_per_row = st.sidebar.slider("Images per row", 2, 8, 4)
     show_captions = st.sidebar.checkbox("Show captions", value=True)
     caption_style = st.sidebar.selectbox(
         "Caption style", ["Filename", "Short metadata", "Full metadata"]
@@ -267,13 +275,6 @@ def main():
             st.markdown(f"### {group_axis.title()}: {g}")
             grid_show(gdf, images_per_row, show_captions, caption_style)
             st.markdown("---")
-
-
-
-    # Sidebar filters
-    df = filtered_df(df)
-
-
 
     # Footer
     st.caption("Tip: Use the sidebar to refine filters and adjust the layout.")
