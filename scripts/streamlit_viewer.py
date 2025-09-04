@@ -27,20 +27,34 @@ import streamlit as st
 # Utilities
 # ---------------------------
 @st.cache_data(show_spinner=False)
-def load_metadata(csv_path: Path) -> pd.DataFrame:
+def load_metadata() -> pd.DataFrame:
 
-        # 1. Get the directory where the script is located
-    script_dir = Path(__file__).resolve().parent
+    script_dir = Path(__file__).resolve().parent   # app/ folder if your script lives there
+    repo_root  = script_dir.parent
 
-    # 2. Define the root folder (parent of the script folder)
-    root = script_dir.parent
+    images_dir = repo_root / "images"
+    if not images_dir.exists():
+        st.warning(f"Images folder not found: {images_dir}")
+        st.stop()  
 
-    # 3. Load your CSV
+    csv_path = repo_root / "metadata.csv"
     df = pd.read_csv(csv_path)
-    csv_path = script_dir / "metadata.csv"
+    
 
-    # 4. Turn relative paths into full paths
-    df["full_path"] = df["rel_path"].apply(lambda x: str(root / x))
+    df["full_path"] = (images_dir/ df["rel_path"]).apply(lambda x: str(images_dir / x))
+    st.text(df.loc[0, "full_path"]) 
+    #     # 1. Get the directory where the scsript is located
+    # script_dir = Path(__file__).resolve().parent
+
+    # # 2. Define the root folder (parent of the script folder)
+    # root = script_dir.parent
+
+    # # 3. Load your CSV
+    # df = pd.read_csv(csv_path)
+    # csv_path = script_dir / "metadata.csv"
+
+    # # 4. Turn relative paths into full paths
+    # df["full_path"] = df["rel_path"].apply(lambda x: str(root / x))
 
 
     # Normalize expected columns (tolerate case differences)
@@ -139,7 +153,7 @@ def grid_show(
 
     cols = st.columns(images_per_row)
     for i, (_, row) in enumerate(group_rows.iterrows()):
-        path = Path(row["rel_path"])
+        path = Path(row["full_path"])
         img = None
         err = None
         try:
@@ -192,40 +206,53 @@ def main():
     st.write(
         "Filter and compare by **Sample**, **Method**, **Location**, **Mode**, and **Magnification**."
     )
+    
+    # # Source selector (UI fallback)
+    # src_mode = st.sidebar.radio("Data source", ["Upload CSV" , "From folder"])
+    # csv_path = None
 
-    # Source selector (UI fallback)
-    src_mode = st.sidebar.radio("Data source", ["Upload CSV" , "From folder"])
-    csv_path = None
+    # if args.csv:
+    #     csv_path = Path(args.csv).expanduser().resolve()
+    # elif args.data_root:
+    #     csv_path = Path(args.data_root).expanduser().resolve() / "metadata.csv"
 
-    if args.csv:
-        csv_path = Path(args.csv).expanduser().resolve()
-    elif args.data_root:
-        csv_path = Path(args.data_root).expanduser().resolve() / "metadata.csv"
+    # if src_mode == "From folder":
+    #     folder = st.sidebar.text_input(
+    #         "Folder path (contains metadata.csv)",
+    #         value=str(csv_path.parent) if csv_path else "",
+    #     )
+    #     if folder:
+    #         csv_path = Path(folder).expanduser().resolve() / "metadata.csv"
+    # else:
+    #     uploaded = st.sidebar.file_uploader("Upload metadata.csv", type=["csv"])
+    #     if uploaded is not None:
+    #         df = pd.read_csv(uploaded)
+    #     else:
+    #         df = None
 
-    if src_mode == "From folder":
-        folder = st.sidebar.text_input(
-            "Folder path (contains metadata.csv)",
-            value=str(csv_path.parent) if csv_path else "",
-        )
-        if folder:
-            csv_path = Path(folder).expanduser().resolve() / "metadata.csv"
-    else:
-        uploaded = st.sidebar.file_uploader("Upload metadata.csv", type=["csv"])
-        if uploaded is not None:
-            df = pd.read_csv(uploaded)
-        else:
-            df = None
+    # # Load metadata
+    # if src_mode == "Upload CSV":
+    #     if df is None:
+    #         st.info("Upload a metadata.csv to begin.")
+    #         st.stop()
+    # else:
+    #     if not csv_path or not csv_path.exists():
+    #         st.warning("Please provide a valid folder path containing metadata.csv.")
+    #         st.stop()
 
-    # Load metadata
-    if src_mode == "Upload CSV":
-        if df is None:
-            st.info("Upload a metadata.csv to begin.")
-            st.stop()
-    else:
-        if not csv_path or not csv_path.exists():
-            st.warning("Please provide a valid folder path containing metadata.csv.")
-            st.stop()
-        df = load_metadata(csv_path)
+    # script_dir = Path(__file__).resolve().parent   # app/ folder if your script lives there
+    # repo_root  = script_dir.parent
+
+    # images_dir = repo_root / "images"
+    # if not images_dir.exists():
+    #     st.warning(f"Images folder not found: {images_dir}")
+    #     st.stop()  
+
+    # csv_path = repo_root / "metadata.csv"
+
+    df = load_metadata()
+        
+ 
 
 
     # View controls
