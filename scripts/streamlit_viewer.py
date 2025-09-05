@@ -261,15 +261,12 @@ def main():
         layout="wide", initial_sidebar_state="expanded"  # or "collapsed"
     )
 
-    # with open("README.md", "r", encoding="utf-8") as f:
-    #     readme_text = f.read()
-
     # for online hosting
-    text_url = "https://raw.githubusercontent.com/nate-yang-uk/Polarising-Microscopic-Image-Viewer/refs/heads/main/Readme.md"
-    readme_text = requests.get(text_url).text
+    text_url = "https://raw.githubusercontent.com/nate-yang-uk/Polarising-Microscopic-Image-Viewer/refs/heads/main/image_info.txt"
+    info_text = requests.get(text_url).text
 
     # Put it inside a text area
-    st.sidebar.text_area("Image Info", value=readme_text, width=300, height=300)
+    st.sidebar.text_area("Image Info", value=info_text, width=300, height=300)
 
     # View controls
     st.sidebar.markdown("---")
