@@ -22,6 +22,8 @@ from pathlib import Path
 import pandas as pd
 from PIL import Image, UnidentifiedImageError
 import streamlit as st
+import requests
+import io
 
 # ---------------------------
 # Utilities
@@ -32,31 +34,20 @@ def load_metadata() -> pd.DataFrame:
     script_dir = Path(__file__).resolve().parent   # app/ folder if your script lives there
     repo_root  = script_dir.parent
 
-    images_dir = repo_root / "images"
-    if not images_dir.exists():
-        st.warning(f"Images folder not found: {images_dir}")
-        st.stop()  
+    # images_dir = repo_root / "images"
+    # if not images_dir.exists():
+    #     st.warning(f"Images folder not found: {images_dir}")
+    #     st.stop()  
+
 
     csv_path = repo_root / "metadata.csv"
     df = pd.read_csv(csv_path)
-    
+    # df["full_path"] = (images_dir/ df["rel_path"]).apply(lambda x: str(images_dir / x))
 
-    df["full_path"] = (images_dir/ df["rel_path"]).apply(lambda x: str(images_dir / x))
-    st.text(df.loc[0, "full_path"]) 
-    #     # 1. Get the directory where the scsript is located
-    # script_dir = Path(__file__).resolve().parent
+    # use this for online hosting
+    images_dir = "https://media.githubusercontent.com/media/nate-yang-uk/Polarising-Microscopic-Image-Viewer/main/images"
 
-    # # 2. Define the root folder (parent of the script folder)
-    # root = script_dir.parent
-
-    # # 3. Load your CSV
-    # df = pd.read_csv(csv_path)
-    # csv_path = script_dir / "metadata.csv"
-
-    # # 4. Turn relative paths into full paths
-    # df["full_path"] = df["rel_path"].apply(lambda x: str(root / x))
-
-
+    df["full_path"] = df["rel_path"].apply(lambda x: f"{images_dir}/{x}")
     # Normalize expected columns (tolerate case differences)
     df.columns = [c.strip().lower() for c in df.columns]
     # Ensure required columns exist
@@ -145,6 +136,7 @@ def filtered_df(df: pd.DataFrame) -> pd.DataFrame:
 
 
 def grid_show(
+    df: pd.DataFrame,
     group_rows: pd.DataFrame,
     images_per_row: int,
     show_captions: bool,
@@ -157,7 +149,15 @@ def grid_show(
         img = None
         err = None
         try:
-            img = Image.open(path)
+            # img = Image.open(path)
+            
+            # for online hosting
+            url = row["full_path"]
+            response = requests.get(url, stream=True)
+            response.raise_for_status()    # raise an error if request fails
+
+            img = Image.open(io.BytesIO(response.content))
+
         except Exception as e:
             err = str(e)
 
@@ -280,7 +280,7 @@ def main():
         st.subheader(f"Sample: {sample_choice}")
         for g, gdf in subset.groupby(group_axis):
             st.markdown(f"### {group_axis.title()}: {g}")
-            grid_show(gdf, images_per_row, show_captions, caption_style)
+            grid_show(df, gdf, images_per_row, show_captions, caption_style)
             st.markdown("---")
     else:
         options = sorted(df["method"].unique().tolist())
@@ -292,7 +292,7 @@ def main():
         st.subheader(f"Method: {method_choice}")
         for g, gdf in subset.groupby(group_axis):
             st.markdown(f"### {group_axis.title()}: {g}")
-            grid_show(gdf, images_per_row, show_captions, caption_style)
+            grid_show(df, gdf, images_per_row, show_captions, caption_style)
             st.markdown("---")
 
 
