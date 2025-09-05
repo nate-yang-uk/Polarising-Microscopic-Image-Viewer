@@ -253,8 +253,16 @@ def main():
     df = load_metadata()
         
  
+    st.set_page_config(
+    layout="wide", 
+    initial_sidebar_state="expanded"   # or "collapsed"
+    )
 
+    with open("README.md", "r", encoding="utf-8") as f:
+        readme_text = f.read()
 
+    # Put it inside a text area
+    st.sidebar.text_area("Image Info", value=readme_text, width=300, height=300)
     # View controls
     st.sidebar.markdown("---")
     view_mode = st.sidebar.radio("View mode", ["By Sample", "By Method"])
