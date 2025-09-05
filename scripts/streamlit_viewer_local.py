@@ -37,19 +37,19 @@ def load_metadata() -> pd.DataFrame:
     )  # app/ folder if your script lives there
     repo_root = script_dir.parent
 
-    # images_dir = repo_root / "images"
-    # if not images_dir.exists():
-    #     st.warning(f"Images folder not found: {images_dir}")
-    #     st.stop()
+    images_dir = repo_root / "images"
+    if not images_dir.exists():
+        st.warning(f"Images folder not found: {images_dir}")
+        st.stop()
 
     csv_path = repo_root / "metadata.csv"
     df = pd.read_csv(csv_path)
-    # df["full_path"] = (images_dir/ df["rel_path"]).apply(lambda x: str(images_dir / x))
+    df["full_path"] = (images_dir / df["rel_path"]).apply(lambda x: str(images_dir / x))
 
     # use this for online hosting
-    images_dir = "https://media.githubusercontent.com/media/nate-yang-uk/Polarising-Microscopic-Image-Viewer/main/images"
+    # images_dir = "https://media.githubusercontent.com/media/nate-yang-uk/Polarising-Microscopic-Image-Viewer/main/images"
 
-    df["full_path"] = df["rel_path"].apply(lambda x: f"{images_dir}/{x}")
+    # df["full_path"] = df["rel_path"].apply(lambda x: f"{images_dir}/{x}")
     # Normalize expected columns (tolerate case differences)
     df.columns = [c.strip().lower() for c in df.columns]
     # Ensure required columns exist
@@ -152,14 +152,13 @@ def grid_show(
         img = None
         err = None
         try:
-            # img = Image.open(path)
+            img = Image.open(path)
 
             # for online hosting
-            url = row["full_path"]
-            response = requests.get(url, stream=True)
-            response.raise_for_status()  # raise an error if request fails
-
-            img = Image.open(io.BytesIO(response.content))
+            # url = row["full_path"]
+            # response = requests.get(url, stream=True)
+            # response.raise_for_status()  # raise an error if request fails
+            # img = Image.open(io.BytesIO(response.content))
 
         except Exception as e:
             err = str(e)
@@ -261,12 +260,12 @@ def main():
         layout="wide", initial_sidebar_state="expanded"  # or "collapsed"
     )
 
-    # with open("README.md", "r", encoding="utf-8") as f:
-    #     readme_text = f.read()
+    with open("README.md", "r", encoding="utf-8") as f:
+        readme_text = f.read()
 
     # for online hosting
-    text_url = "https://raw.githubusercontent.com/nate-yang-uk/Polarising-Microscopic-Image-Viewer/refs/heads/main/Readme.md"
-    readme_text = requests.get(text_url).text
+    # text_url = "https://raw.githubusercontent.com/nate-yang-uk/Polarising-Microscopic-Image-Viewer/refs/heads/main/Readme.md"
+    # readme_text = requests.get(text_url).text
 
     # Put it inside a text area
     st.sidebar.text_area("Image Info", value=readme_text, width=300, height=300)
