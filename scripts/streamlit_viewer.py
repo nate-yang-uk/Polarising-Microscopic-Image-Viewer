@@ -240,7 +240,7 @@ def main():
     #         st.warning("Please provide a valid folder path containing metadata.csv.")
     #         st.stop()
 
-    # script_dir = Path(__file__).resolve().parent   # app/ folder if your script lives there
+    script_dir = Path(__file__).resolve().parent   # app/ folder if your script lives there
     # repo_root  = script_dir.parent
 
     # images_dir = repo_root / "images"
@@ -258,11 +258,18 @@ def main():
     initial_sidebar_state="expanded"   # or "collapsed"
     )
 
-    with open("README.md", "r", encoding="utf-8") as f:
-        readme_text = f.read()
+    # with open("README.md", "r", encoding="utf-8") as f:
+    #     readme_text = f.read()
+
+    # for online hosting
+    text_url = "https://raw.githubusercontent.com/nate-yang-uk/Polarising-Microscopic-Image-Viewer/refs/heads/main/Readme.md"
+    readme_text = requests.get(text_url).text
+
+
 
     # Put it inside a text area
     st.sidebar.text_area("Image Info", value=readme_text, width=300, height=300)
+
     # View controls
     st.sidebar.markdown("---")
     view_mode = st.sidebar.radio("View mode", ["By Sample", "By Method"])
